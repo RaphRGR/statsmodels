@@ -2414,3 +2414,31 @@ def test_finite_data_unchanged():
     assert np.all(np.isfinite(res.params))
     res = GLS(endog, exog, sigma=np.linspace(1e-10, 1e10, 100)).fit()
     assert np.all(np.isfinite(res.params))
+
+
+@pytest.mark.parametrize("val", [101.37, 123.456])
+@pytest.mark.parametrize("model_cls", [OLS, WLS, GLS])
+def test_constant_endog_rsquared(val, model_cls):
+    # Test for issue #10647: constant endog series should return nan rsquared
+    # and 0.0 centered_tss, even when mean is not exactly representable in float.
+    y = np.full(250, val)
+    X = add_constant(np.arange(250.0))
+    res = model_cls(y, X).fit()
+    assert_equal(res.centered_tss, 0.0)
+    assert np.isnan(res.rsquared)
+    assert np.isnan(res.rsquared_adj)
+    # verify summary formats without issue
+    summ = str(res.summary())
+    assert "nan" in summ
+
+
+def test_zero_endog_no_constant_rsquared():
+    # When endog is all zero and there is no constant regressor,
+    # uncentered_tss is 0.0 and rsquared should be nan without warnings.
+    y = np.zeros(100)
+    X = np.arange(1.0, 101.0)[:, None]
+    res = OLS(y, X).fit()
+    assert_equal(res.uncentered_tss, 0.0)
+    assert np.isnan(res.rsquared)
+    assert np.isnan(res.rsquared_adj)
+

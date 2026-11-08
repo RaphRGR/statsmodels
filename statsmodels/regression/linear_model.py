@@ -2124,6 +2124,8 @@ class RegressionResults(base.LikelihoodModelResults):
     def centered_tss(self):
         """The total (weighted) sum of squares centered about the mean"""
         model = self.model
+        if model.endog.max() == model.endog.min():
+            return 0.0
         weights = model.weights
         sigma = model.sigma
         if weights is not None:
@@ -2176,8 +2178,15 @@ class RegressionResults(base.LikelihoodModelResults):
         omitted.
         """
         if self.k_constant:
+            if (
+                self.centered_tss == 0
+                or self.model.endog.max() == self.model.endog.min()
+            ):
+                return np.nan
             return 1 - self.ssr / self.centered_tss
         else:
+            if self.uncentered_tss == 0:
+                return np.nan
             return 1 - self.ssr / self.uncentered_tss
 
     @cache_readonly
